@@ -5,6 +5,7 @@
     :expand-on-click-node="false"
     show-checkbox="true"
     node-key="catId"
+    :default-expanded-keys="expandedKey"
   >
     <span class="custom-tree-node" slot-scope="{ node, data }">
       <span>{{ node.label }}</span>
@@ -34,6 +35,7 @@ export default {
     return {
       data: [],
       menus: [],
+      expandedKey: [],
       defaultProps: {
         children: "children",
         label: "name",
@@ -57,7 +59,30 @@ export default {
       console.log("append", data);
     },
     remove(node, data) {
-      console.log("remove", node, data);
+      var ids = [data.catId];
+      this.$confirm(`是否删除${data.name}菜单`, "Warning", {
+        confirmButtonText: "OK",
+        cancelButtonText: "Cancel",
+        type: "warning",
+      })
+        .then(() => {
+          this.$http({
+            url: this.$http.adornUrl("/product/category/delete"),
+            method: "post",
+            data: this.$http.adornData(ids, false),
+          }).then(({ data }) => {
+            this.$notify({
+              title: "Success",
+              message: "菜单删除成功",
+              type: "success",
+            });
+            //refresh new menu
+            this.getMenus();
+            //set default expand menu
+            this.expandedKey = [node.parent.data.catId];
+          });
+        })
+        .catch(() => {});
     },
   },
   created() {
