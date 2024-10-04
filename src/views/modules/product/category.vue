@@ -9,6 +9,7 @@
       :default-expanded-keys="expandedKey"
       draggable="true"
       :allow-drop="allowDrop"
+      @node-drop="handleDrop"
     >
       <span class="custom-tree-node" slot-scope="{ node, data }">
         <span>{{ node.label }}</span>
@@ -66,6 +67,7 @@
 export default {
   data() {
     return {
+      updateNodes: [],
       maxLevel: 0,
       title: "",
       dialogType: "",
@@ -90,6 +92,49 @@ export default {
     };
   },
   methods: {
+    handleDrop(draggingNode, dropNode, dropType, ev) {
+      let pCid = 0;
+      let siblings = null;
+      if (dropType == "before" || dropType == "after") {
+        pCid =
+          dropNode.parent.data.catId == undefined
+            ? 0
+            : dropNode.parent.data.catId;
+        siblings = dropNode.parent.childNodes;
+      } else {
+        pCid = dropNode.data.catId;
+        siblings = dropNode.childNodes;
+      }
+
+      for (let i = 0; i < siblings.length; i++) {
+        if (siblings[i].data.catId == draggingNode.data.catId) {
+          let catLevel = draggingNode.level;
+          if (siblings[i].level != draggingNode.level) {
+            catLevel = siblings[i].level;
+            this.updateChildNodeLevel(siblings[i]);
+          }
+          this.updateNodes.push({
+            catId: siblings[i].data.catId,
+            parentCid: pCid,
+            catLevel: catLevel,
+          });
+        }
+        this.updateNodes.push({ catId: siblings[i].data.catId });
+      }
+    },
+    updateChildNodeLevel(node) {
+      if (node.childNodes.length > 0) {
+        for (let i = 0; i < node.childNodes.length; i++) {
+          var cNode = node.childNodes[i].data;
+          this.updateNodes.push({
+            catId: cNode.catId,
+            catLevel: (cNode.catLevel = node.childNodes[i].level),
+          });
+
+          this.updateChildNodeLevel(node.childNodes[i]);
+        }
+      }
+    },
     submitData() {
       if (this.dialogType == "add") {
         this.addCategory();
@@ -106,9 +151,9 @@ export default {
         return depth + dropNode.parent.level <= 3;
       }
     },
-    countNodeLevel(draggingNode) {
+    countNodeLevel(node) {
       //find the max level
-      if (node.children != null && children.length > 0) {
+      if (node.children != null && node.children.length > 0) {
         for (let i = 0; i < node.children.length; i++) {
           if (node.children[i].catLevel > this.maxLevel) {
             this.maxLevel = node.children[i].catLevel;
