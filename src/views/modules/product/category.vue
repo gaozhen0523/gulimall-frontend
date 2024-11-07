@@ -1,5 +1,12 @@
 <template>
   <div>
+    <el-switch
+      v-model="draggable"
+      active-text="开启拖拽"
+      inactive-text="关闭拖拽"
+    >
+    </el-switch>
+    <el-button v-if="draggable" @click="batchSave"> 批量保存 </el-button>
     <el-tree
       :data="menus"
       :props="defaultProps"
@@ -7,7 +14,7 @@
       show-checkbox="true"
       node-key="catId"
       :default-expanded-keys="expandedKey"
-      draggable="true"
+      :draggable="draggable"
       :allow-drop="allowDrop"
       @node-drop="handleDrop"
     >
@@ -67,6 +74,8 @@
 export default {
   data() {
     return {
+      pCid: [],
+      draggable: false,
       updateNodes: [],
       maxLevel: 0,
       title: "",
@@ -92,6 +101,25 @@ export default {
     };
   },
   methods: {
+    batchSave() {
+      this.$http({
+        url: this.$http.adornUrl("/product/category/update/sort"),
+        method: "post",
+        data: this.$http.adornData(this.updateNodes, false),
+      }).then(({ data }) => {
+        this.$notify({
+          title: "Success",
+          message: "菜单顺序等修改成功",
+          type: "success",
+        });
+        this.getMenus();
+        //set default expand menu
+        this.expandedKey = this.pCid;
+        this.updateNodes = [];
+        this.maxLevel = 0;
+        //this.pCid = 0;
+      });
+    },
     handleDrop(draggingNode, dropNode, dropType, ev) {
       let pCid = 0;
       let siblings = null;
@@ -105,7 +133,7 @@ export default {
         pCid = dropNode.data.catId;
         siblings = dropNode.childNodes;
       }
-
+      this.pCid.push(pCid);
       for (let i = 0; i < siblings.length; i++) {
         if (siblings[i].data.catId == draggingNode.data.catId) {
           let catLevel = draggingNode.level;
@@ -119,7 +147,7 @@ export default {
             catLevel: catLevel,
           });
         }
-        this.updateNodes.push({ catId: siblings[i].data.catId });
+        this.updateNodes.push({ catId: siblings[i].data.catId, sort: i });
       }
     },
     updateChildNodeLevel(node) {
@@ -143,8 +171,8 @@ export default {
       }
     },
     allowDrop(draggingNode, dropNode, type) {
-      var level = this.countNodeLevel(draggingNode.data);
-      let depth = this.maxLevel - draggingNode.data.catLevel + 1;
+      var level = this.countNodeLevel(draggingNode);
+      let depth = Math.abs(this.maxLevel - draggingNode.level + 1);
       if (type == "inner") {
         return depth + dropNode.level <= 3;
       } else {
@@ -153,12 +181,12 @@ export default {
     },
     countNodeLevel(node) {
       //find the max level
-      if (node.children != null && node.children.length > 0) {
-        for (let i = 0; i < node.children.length; i++) {
-          if (node.children[i].catLevel > this.maxLevel) {
-            this.maxLevel = node.children[i].catLevel;
+      if (node.childNodes != null && node.childNodes.length > 0) {
+        for (let i = 0; i < node.childNodes.length; i++) {
+          if (node.childNodes[i].level > this.maxLevel) {
+            this.maxLevel = node.childNodes[i].level;
           }
-          this.countNodeLevel(node.children[i]);
+          this.countNodeLevel(node.childNodes[i]);
         }
       }
     },
